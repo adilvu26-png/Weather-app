@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pakistan Weather · City Explorer</title>
+    <!-- Tailwind via CDN + custom base -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font for better readability -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&display=swap" rel="stylesheet">
+    <!-- Font Awesome for weather icons (optional but adds visual clarity) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="weather-app.js" defer></script>
+    <style>
+        /* subtle smoothing */
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(145deg, #f0f9ff 0%, #e6f0fa 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 1rem;
+        }
+        /* card glassmorphism effect */
+        .weather-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 25px 40px -12px rgba(0, 20, 30, 0.25);
+        }
+        /* transition for dynamic content */
+        #weather-details, #error-message, #loading {
+            transition: all 0.2s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="w-full max-w-lg mx-auto">
+        <!-- MAIN CARD -->
+        <div class="weather-card rounded-3xl p-6 md:p-8">
+            <!-- HEADER -->
+            <div class="text-center mb-6">
+                <h1 class="text-3xl md:text-4xl font-bold text-slate-800 flex items-center justify-center gap-3">
+                    <i class="fas fa-cloud-sun text-amber-500"></i>
+                    Pakistan Weather
+                </h1>
+                <p class="text-slate-500 text-sm mt-1">Enter any city in Pakistan</p>
+            </div>
+
+            <!-- SEARCH SECTION -->
+            <div class="flex flex-col sm:flex-row gap-3 mb-8">
+                <div class="relative flex-1">
+                    <i class="fas fa-map-pin absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                    <input 
+                        type="text" 
+                        id="city-input" 
+                        placeholder="e.g. Karachi, Lahore, Islamabad..." 
+                        class="w-full pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 bg-white/70 focus:bg-white focus:ring-2 focus:ring-sky-400 focus:border-transparent outline-none transition-all text-slate-700 placeholder-slate-400 shadow-sm"
+                        autocomplete="off"
+                    >
+                </div>
+                <button 
+                    id="search-btn"
+                    class="bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white font-medium px-6 py-3.5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 whitespace-nowrap"
+                >
+                    <i class="fas fa-search"></i> Search
+                </button>
+            </div>
+
+            <!-- LOADING (hidden by default) -->
+            <div id="loading" class="hidden text-center py-6">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-sky-200 border-t-sky-600"></div>
+                <p class="text-slate-500 mt-2 text-sm">Fetching weather data...</p>
+            </div>
+
+            <!-- ERROR MESSAGE (hidden by default) -->
+            <div id="error-message" class="hidden bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-xl text-center text-sm mb-4">
+                <i class="fas fa-exclamation-circle mr-2"></i>
+                <span id="error-text">City not found. Please try again.</span>
+            </div>
+
+            <!-- WEATHER DETAILS (hidden until data arrives) -->
+            <div id="weather-details" class="hidden">
+                <!-- main row: city + icon -->
+                <div class="flex flex-col items-center text-center mb-6">
+                    <div class="flex items-center gap-3">
+                        <i id="weather-icon" class="fas fa-sun text-5xl text-amber-400"></i>
+                        <div>
+                            <h2 id="city-name" class="text-3xl font-bold text-slate-800">Karachi</h2>
+                            <p id="weather-desc" class="text-slate-500 capitalize">clear sky</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- temperature + stats -->
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <!-- temperature card -->
+                    <div class="bg-white/60 rounded-2xl p-4 text-center shadow-sm border border-white/40">
+                        <p class="text-slate-500 text-xs uppercase tracking-wider">Temperature</p>
+                        <p class="text-4xl font-bold text-slate-800 mt-1">
+                            <span id="temp">--</span><span class="text-2xl align-top">°C</span>
+                        </p>
+                    </div>
+                    <!-- feels like -->
+                    <div class="bg-white/60 rounded-2xl p-4 text-center shadow-sm border border-white/40">
+                        <p class="text-slate-500 text-xs uppercase tracking-wider">Feels like</p>
+                        <p class="text-3xl font-semibold text-slate-800 mt-1">
+                            <span id="feels-like">--</span><span class="text-xl align-top">°C</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- extra details: humidity, wind, pressure -->
+                <div class="grid grid-cols-3 gap-3 text-sm">
+                    <div class="bg-white/50 rounded-xl p-3 text-center">
+                        <i class="fas fa-droplet text-sky-500 mb-1"></i>
+                        <p class="text-slate-500 text-xs">Humidity</p>
+                        <p class="font-semibold text-slate-700"><span id="humidity">--</span>%</p>
+                    </div>
+                    <div class="bg-white/50 rounded-xl p-3 text-center">
+                        <i class="fas fa-wind text-teal-500 mb-1"></i>
+                        <p class="text-slate-500 text-xs">Wind</p>
+                        <p class="font-semibold text-slate-700"><span id="wind">--</span> m/s</p>
+                    </div>
+                    <div class="bg-white/50 rounded-xl p-3 text-center">
+                        <i class="fas fa-gauge-high text-indigo-500 mb-1"></i>
+                        <p class="text-slate-500 text-xs">Pressure</p>
+                        <p class="font-semibold text-slate-700"><span id="pressure">--</span> hPa</p>
+                    </div>
+                </div>
+
+                <!-- last updated (optional) -->
+                <p class="text-center text-xs text-slate-400 mt-6">
+                    <i class="far fa-clock mr-1"></i> Updated just now
+                </p>
+            </div>
+
+            <!-- PLACEHOLDER / INSTRUCTION when no search yet -->
+            <div id="placeholder" class="text-center py-8 text-slate-400">
+                <i class="fas fa-map-location-dot text-4xl mb-3 opacity-50"></i>
+                <p class="text-sm">Search for a city to see its weather</p>
+            </div>
+        </div>
+
+        <!-- tiny footer -->
+        <p class="text-center text-xs text-slate-400 mt-4">
+            OpenWeatherMap · Pakistan cities
+        </p>
+    </div>
+
+</body>
+</html>
